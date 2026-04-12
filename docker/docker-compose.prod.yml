@@ -1,0 +1,204 @@
+# ============================================
+# Wukong AI Platform - Production Docker Compose
+# 生产环境：高可用、资源限制、安全加固
+# ============================================
+
+version: '3.8'
+
+services:
+  # ===== API服务 (多实例 + 负载均衡) =====
+  wukong-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: wukong/wukong-api:${WUKONG_VERSION:-latest}
+    container_name: wukong-api
+    restart: always
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://wukong:${DB_PASSWORD}@postgres:5432/wukong
+      - REDIS_URL=redis://redis:6379/0
+      - MILVUS_HOST=milvus
+      - MINIO_ENDPOINT=minio:9000
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - WORKERS=4
+    volumes:
+      - skill_data:/app/data/skills
+      - file_data:/app/data/files
+      - log_data:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wukong-internal
+    deploy:
+      replicas: ${API_REPLICAS:-3}
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===== Nginx反向代理 =====
+  nginx:
+    image: nginx:alpine
+    container_name: wukong-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - wukong-api
+    networks:
+      - wukong-internal
+      - wukong-public
+    restart: always
+
+  # ===== 数据库 (PostgreSQL) =====
+  postgres:
+    image: postgres:15-alpine
+    container_name: wukong-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: wukong
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: wukong
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - wukong-internal
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=64MB
+      -c wal_buffers=8MB
+      -c max_connections=200
+      -c log_statement=all
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wukong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===== Redis (带持久化) =====
+  redis:
+    image: redis:7-alpine
+    container_name: wukong-redis
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-""}
+    volumes:
+      - redis_data:/data
+    networks:
+      - wukong-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===== Milvus向量数据库 =====
+  milvus:
+    image: milvusdb/milvus:v2.3-latest
+    container_name: wukong-milvus
+    restart: always
+    depends_on:
+      - etcd
+      - minio-milvus
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio-milvus:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    networks:
+      - wukong-internal
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: wukong-etcd
+    restart: always
+    volumes:
+      - etcd_data:/etcd
+    networks:
+      - wukong-internal
+
+  minio-milvus:
+    image: minio/minio:latest
+    container_name: wukong-minio-milvus
+    restart: always
+    volumes:
+      - milvus_minio_data:/data
+    networks:
+      - wukong-internal
+
+  # ===== MinIO对象存储 =====
+  minio:
+    image: minio/minio:latest
+    container_name: wukong-minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    networks:
+      - wukong-internal
+
+  # ===== RabbitMQ消息队列 =====
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: wukong-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 0.8
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - wukong-internal
+
+networks:
+  wukong-internal:
+    internal: true
+  wukong-public:
+
+volumes:
+  postgres_data:
+  redis_data:
+  milvus_data:
+  milvus_minio_data:
+  etcd_data:
+  minio_data:
+  rabbitmq_data:
+  skill_data:
+  file_data:
+  log_data:
+  nginx_logs:

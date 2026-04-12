@@ -1,0 +1,76 @@
+# Wukong AI Platform - Backend Dependencies
+# Python 3.11+
+
+# ===== Web Framework =====
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+websockets==12.0
+
+# ===== AI/LLM =====
+langchain==0.1.14
+langchain-community==0.0.34
+langgraph==0.0.20
+langchain-openai==0.1.6
+langsmith==0.1.12
+
+# Embedding & Reranker
+sentence-transformers==2.5.1
+
+# Multi-Model Gateway
+litellm==1.11.17
+
+# ===== Database =====
+sqlalchemy[asyncio]==2.0.27
+asyncpg==0.29.0
+alembic==1.13.1
+redis==5.0.1
+pymilvus==2.3.6
+
+# Object Storage
+minio==7.2.3
+
+# ===== Task Queue =====
+celery[redis]==5.3.6
+flower==2.0.1
+
+# Message Queue (for Agent communication)
+aio-pika==9.4.0
+
+# ===== Security =====
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+cryptography==42.0.2
+pydantic-settings==2.1.0
+pydantic[email]==2.6.1
+
+# ===== MCP Integration =====
+mcp==0.9.0
+
+# ===== Utilities =====
+httpx==0.27.0
+python-dotenv==1.0.1
+orjson==3.9.15
+tenacity==8.2.3
+rich==13.7.0
+loguru==0.7.2
+
+# ===== Docker SDK (for Skill Sandbox)=====
+docker==7.0.0
+
+# ===== Monitoring =====
+prometheus-client==0.19.0
+opentelemetry-api==1.23.0
+opentelemetry-sdk==1.23.0
+
+# ===== Testing =====
+pytest==8.0.2
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0
+httpx  # for testclient
+testcontainers==3.7.1
+
+# ===== Development =====
+ruff==0.3.2
+black==24.2.0
+mypy==1.8.0

@@ -1,0 +1,246 @@
+# ============================================
+# Wukong AI Platform - Development Docker Compose
+# 完整的开发环境：API + PostgreSQL + Redis + Milvus + MinIO + RabbitMQ
+# ============================================
+
+version: '3.8'
+
+services:
+  # ===== 应用服务 =====
+  wukong-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: wukong-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://wukong:wukong@postgres:5432/wukong
+      - REDIS_URL=redis://redis:6379/0
+      - MILVUS_HOST=milvus
+      - MILVUS_PORT=19530
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=wukongadmin
+      - MINIO_SECRET_KEY=wukongadmin123
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - JWT_SECRET_KEY=dev-secret-key-change-in-production
+      - APP_NAME=Wukong AI Dev
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+    volumes:
+      - ../backend:/app  # 开发模式：热重载
+      - skill_data:/app/data/skills
+      - file_data:/app/data/files
+      - log_data:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wukong-network
+    restart: unless-stopped
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ===== 数据库服务 =====
+  postgres:
+    image: postgres:15-alpine
+    container_name: wukong-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: wukong
+      POSTGRES_PASSWORD: wukong
+      POSTGRES_DB: wukong
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wukong"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - wukong-network
+    restart: unless-stopped
+
+  # ===== 缓存/会话服务 =====
+  redis:
+    image: redis:7-alpine
+    container_name: wukong-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - wukong-network
+    restart: unless-stopped
+
+  # ===== 向量数据库 (Milvus) =====
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: wukong-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: >
+      etcd
+      -advertise-client-urls=http://0.0.0.0:2379
+      -listen-client-urls=http://0.0.0.0:2379
+      --data-dir /etcd
+    networks:
+      - wukong-network
+    restart: unless-stopped
+
+  minio-milvus:
+    image: minio/minio:latest
+    container_name: wukong-minio-milvus
+    environment:
+      MINIO_ROOT_USER: milvus_minio
+      MINIO_ROOT_PASSWORD: milvus_minio123
+    ports:
+      - "9001:9000"
+      - "9002:9001"
+    volumes:
+      - milvus_minio_data:/minio_data
+    command: server /minio_data --console-address ":9001"
+    networks:
+      - wukong-network
+    restart: unless-stopped
+
+  milvus:
+    image: milvusdb/milvus:v2.3-latest
+    container_name: wukong-milvus
+    depends_on:
+      - etcd
+      - minio-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio-milvus:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - wukong-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
+  # ===== 对象存储 (MinIO) =====
+  minio:
+    image: minio/minio:latest
+    container_name: wukong-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: wukongadmin
+      MINIO_ROOT_PASSWORD: wukongadmin123
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - wukong-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ===== 消息队列 (RabbitMQ) =====
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: wukong-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - wukong-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===== 监控服务 =====
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: wukong-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - wukong-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: wukong-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - wukong-network
+    restart: unless-stopped
+
+networks:
+  wukong-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  milvus_data:
+  milvus_minio_data:
+  etcd_data:
+  minio_data:
+  rabbitmq_data:
+  skill_data:
+  file_data:
+  log_data:
+  prometheus_data:
+  grafana_data:
