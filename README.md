@@ -24,6 +24,7 @@
 ## 📖 Table of Contents
 
 - [✨ Features](#-features)
+- [📸 Screenshots & Demo](#-screenshots--demo)
 - [🏗️ Architecture](#-architecture)
 - [🚀 Quick Start](#-quick-start)
 - [📦 Installation](#-installation)

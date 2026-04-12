@@ -1,0 +1,105 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for SupraMAS
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please fill out this form to help us understand your proposal.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What category does this feature belong to?
+      options:
+        - 🧠 Core Architecture (Supervisor/Agents)
+        - 🔍 RAG / Knowledge Retrieval
+        - ⚡ Skills & Extensions
+        - 📁 File Processing
+        - 🎯 Intent Recognition
+        - 🌐 MCP Integration
+        - 💬 Chat Interface (Frontend)
+        - 🔐 Security & Permissions
+        - 📊 Monitoring & Observability
+        - 🐳 DevOps / Deployment
+        - 📖 Documentation
+        - 🔧 Developer Experience
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Clearly and concisely describe the problem this feature would solve.
+      placeholder: |
+        Currently, when users want to do X, they have to do Y which is cumbersome.
+        This creates friction because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see implemented.
+      placeholder: |
+        I propose adding a new capability that allows users to...
+        This could be implemented by...
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: I've tried X and Y as workarounds, but they don't fully solve the issue because...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - 🔴 Critical - Blocking my use case
+        - 🟠 High - Would greatly improve experience
+        - 🟡 Medium - Nice to have
+        - 🔵 Low - Future consideration
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Willingness to Contribute
+      description: Are you interested in contributing this feature?
+      options:
+        - label: "Yes! I'd like to implement this feature myself"
+        - label: "I can help with testing/documentation"
+        - label: "I can provide guidance/design input"
+        - label: "No, just suggesting for future consideration"
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups / Examples (Optional)
+      description: If applicable, add mockups or examples to help illustrate the feature.
+      placeholder: Describe UI changes, API designs, configuration examples, etc.
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the feature request.
+      placeholder: Add any other context, screenshots, references, etc.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: This is a single feature request (not multiple features combined)
+          required: true

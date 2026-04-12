@@ -1,0 +1,133 @@
+name: 🐛 Bug Report
+description: File a bug report to help us improve SupraMAS
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report! Please fill out the form below as completely as possible.
+
+  - type: input
+    id: version
+    attributes:
+      label: SupraMAS Version
+      description: Which version of SupraMAS are you using?
+      placeholder: e.g., 1.0.0, main branch (commit abc1234)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component(s)
+      description: Which part(s) of the system are affected?
+      multiple: true
+      options:
+        - Supervisor (5-Layer Architecture)
+        - Input Router / Query Optimizer
+        - Task Planner / Execution Dispatcher
+        - Security Guard
+        - RAG Agent
+        - Skill Agent
+        - File Agent
+        - Intent Recognition Agent
+        - Domain Agents (Ecommerce, Design, Finance, etc.)
+        - MCP Integration
+        - API Endpoints
+        - Frontend (React)
+        - Docker / Deployment
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: |
+        When I do X, Y happens instead of Z.
+        I expected Z to happen because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior.
+      placeholder: |
+        1. Start the backend server with 'python main.py'
+        2. Open http://localhost:8000/docs
+        3. Call POST /api/v1/chat/completions with {...}
+        4. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+      placeholder: The API should return a valid response with status code 200.
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened.
+      placeholder: |
+        Error message:
+        ```
+        Traceback (most recent call last):
+          ...
+        ```
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs / Error Messages
+      description: Please copy and paste any relevant log output or error messages.
+      render: shell
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment Details
+      description: OS, Python version, Node version, etc.
+      placeholder: macOS Sonoma 14.2, Python 3.11.6, Node.js 20.10.0
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Reproducibility
+      description: How often can you reproduce this issue?
+      options:
+        - Always (100%)
+        - Often (50-99%)
+        - Sometimes (1-49%)
+        - Rarely (<1%)
+        - Couldn't reproduce after multiple attempts
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the problem: screenshots, configuration files, etc.
+      placeholder: Add any other context about the problem here.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have provided all necessary information to reproduce the issue
+          required: true
+        - label: This is a legitimate bug (not a feature request or question)
+          required: true
