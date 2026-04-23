@@ -69,7 +69,43 @@ class SkillSubAgent(BaseSubAgent):
             logger.info(f"[{self.agent_id}] Docker client initialized")
         except Exception as e:
             logger.warning(f"[{self.agent_id}] Docker not available: {e}. Skills will run in-process.")
-    
+
+        # 启动时从磁盘加载所有技能
+        self._ensure_skills_loaded()
+
+    def _ensure_skills_loaded(self):
+        """启动时扫描skill_storage_path，加载所有技能到注册表"""
+        if not os.path.exists(self.skill_storage_path):
+            logger.warning(f"[{self.agent_id}] Skill storage path does not exist: {self.skill_storage_path}")
+            return
+
+        loaded = 0
+        for skill_id in os.listdir(self.skill_storage_path):
+            skill_dir = os.path.join(self.skill_storage_path, skill_id)
+            if not os.path.isdir(skill_dir):
+                continue
+
+            manifest_path = os.path.join(skill_dir, "skill_manifest.json")
+            if not os.path.exists(manifest_path):
+                continue
+
+            try:
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    manifest = json.load(f)
+
+                entry_point = manifest.get("entry_point", "main.py")
+                code_path = os.path.join(skill_dir, entry_point)
+                if os.path.exists(code_path):
+                    with open(code_path, 'r', encoding='utf-8') as f:
+                        code = f.read()
+                    skill_data = {**manifest, "code": code}
+                    self._skill_registry[skill_id] = skill_data
+                    loaded += 1
+            except Exception as e:
+                logger.error(f"[{self.agent_id}] Failed to load skill {skill_id}: {e}")
+
+        logger.info(f"[{self.agent_id}] Loaded {loaded} skills from {self.skill_storage_path}")
+
     async def execute(self, task: Dict[str, Any], context: AgentExecutionContext) -> AgentExecutionResult:
         """执行技能"""
         start_time = time.time()

@@ -87,7 +87,7 @@ async def lifespan(app: FastAPI):
     app.state.supervisor.register_subagent("skill", SkillSubAgent({
         "skill_storage_path": "./data/skills",
         "default_timeout": 300,
-        "security_scan_on_upload": True
+        "security_scan_on_upload": False
     }))
     
     app.state.supervisor.register_subagent("file", FileSubAgent({
