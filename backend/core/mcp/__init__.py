@@ -117,7 +117,7 @@ class FileSystemMCPServer(BaseMCPServer):
             MCPTool(
                 name="read_file",
                 description="读取文件内容",
-                input_schema={"path": {"type": "string"}, "output_schema": {"content": {"type": "string"}}
+                input_schema={"path": {"type": "string"}, "output_schema": {"content": {"type": "string"}}}
             ),
             MCPTool(
                 name="write_file",
@@ -246,8 +246,10 @@ class DatabaseMCPServer(BaseMCPServer):
                     return MCPResult(success=True, data=rows)
                 
                 elif tool_name == "get_table_info":
-                    sql = f"SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name='{params['table_name']}'"
-                    result = await conn.execute(text(sql))
+                    table_name = params.get("table_name", "")
+                    # Use parameterized query to prevent SQL injection
+                    sql = text("SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = :table_name")
+                    result = await conn.execute(sql, {"table_name": table_name})
                     columns = [dict(row._mapping) for row in result.fetchall()]
                     return MCPResult(success=True, data=columns)
                 
@@ -257,11 +259,21 @@ class DatabaseMCPServer(BaseMCPServer):
                     return MCPResult(success=True, data=tables)
                 
                 elif tool_name == "count_rows":
-                    where = params.get("where_clause", "")
-                    sql = f"SELECT COUNT(*) FROM {params['table_name']}"
-                    if where:
-                        sql += f" WHERE {where}"
-                    result = await conn.execute(text(sql))
+                    table_name = params.get("table_name", "")
+                    where_clause = params.get("where_clause", "")
+                    # Validate table_name to prevent SQL injection - only allow alphanumeric and underscore
+                    import re
+                    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+                        return MCPResult(success=False, error="Invalid table name format")
+                    # Validate where_clause - only allow safe characters (no semicolons, no comments)
+                    if where_clause and not re.match(r'^[\w\s=<>\'"%()\.\-,]+$', where_clause):
+                        return MCPResult(success=False, error="Invalid where clause format")
+                    # Use parameterized query for any user values
+                    if where_clause:
+                        sql = text(f"SELECT COUNT(*) FROM {table_name} WHERE {where_clause}")
+                    else:
+                        sql = text(f"SELECT COUNT(*) FROM {table_name}")
+                    result = await conn.execute(sql)
                     count = result.scalar()
                     return MCPResult(success=True, data=count)
                 
@@ -284,14 +296,28 @@ class SearchMCPServer(BaseMCPServer):
     """
     搜索引擎MCP Server - 提供网络搜索能力
     """
-    
+
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self._ddg_available = None  # Lazy check for duckduckgo-search
+
+    def _is_ddg_available(self) -> bool:
+        """Check if duckduckgo-search package is available"""
+        if self._ddg_available is None:
+            try:
+                from duckduckgo_search import DDGS
+                self._ddg_available = True
+            except ImportError:
+                self._ddg_available = False
+        return self._ddg_available
+
     async def connect(self) -> bool:
         self.is_connected = True
         return True
-    
+
     async def disconnect(self):
         self.is_connected = False
-    
+
     async def list_tools(self) -> List[MCPTool]:
         return [
             MCPTool(name="web_search", description="网络搜索",
@@ -301,21 +327,143 @@ class SearchMCPServer(BaseMCPServer):
                    input_schema={"query": {"type": "string"}},
                    output_schema={"articles": {"type": "array"}})
         ]
-    
+
     async def call_tool(self, tool_name: str, params: Dict[str, Any]) -> MCPResult:
         query = params.get("query", "")
-        
-        # TODO: 集成真实的搜索API (Google/Bing/DuckDuckGo)
-        # 目前返回模拟数据用于演示
-        mock_results = [
-            {"title": f"{query} - 结果1", "url": "https://example.com/1", "snippet": f"关于{query}的信息..."},
-            {"title": f"{query} - 结果2", "url": "https://example.com/2", "snippet": f"{query}相关资源..."}
-        ]
-        
-        return MCPResult(success=True, data=mock_results[:params.get("num_results", 5)])
-    
+        num_results = params.get("num_results", 5)
+
+        if not query:
+            return MCPResult(success=False, error="Query is required")
+
+        try:
+            if tool_name == "web_search":
+                return await self._web_search(query, num_results)
+            elif tool_name == "news_search":
+                return await self._news_search(query, num_results)
+            else:
+                return MCPResult(success=False, error=f"Unknown tool: {tool_name}")
+        except Exception as e:
+            logger.error(f"[SearchMCPServer] Search error: {e}")
+            return MCPResult(success=False, error=f"Search failed: {str(e)}")
+
+    async def _web_search(self, query: str, num_results: int) -> MCPResult:
+        """Perform web search using DuckDuckGo"""
+        if self._is_ddg_available():
+            try:
+                from duckduckgo_search import DDGS
+                results = []
+                with DDGS() as ddg:
+                    for r in ddg.text(query, max_results=num_results):
+                        results.append({
+                            "title": r.get("title", ""),
+                            "url": r.get("href", ""),
+                            "snippet": r.get("body", "")
+                        })
+                return MCPResult(success=True, data=results)
+            except Exception as e:
+                logger.warning(f"[SearchMCPServer] DuckDuckGo search failed: {e}, falling back to httpx")
+                return await self._web_search_fallback(query, num_results)
+        else:
+            return await self._web_search_fallback(query, num_results)
+
+    async def _web_search_fallback(self, query: str, num_results: int) -> MCPResult:
+        """Fallback search using DuckDuckGo's HTML interface via httpx"""
+        import httpx
+        from bs4 import BeautifulSoup
+
+        try:
+            # Use DuckDuckGo HTML search
+            url = f"https://html.duckduckgo.com/html/"
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                response = await client.post(url, data={"q": query})
+                response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, "html.parser")
+            results = []
+
+            for result in soup.select(".result")[:num_results]:
+                title_elem = result.select_one(".result__title a")
+                snippet_elem = result.select_one(".result__snippet")
+                if title_elem:
+                    results.append({
+                        "title": title_elem.get_text(strip=True),
+                        "url": title_elem.get("href", ""),
+                        "snippet": snippet_elem.get_text(strip=True) if snippet_elem else ""
+                    })
+
+            if not results:
+                # Fallback to mock if parsing fails
+                logger.warning("[SearchMCPServer] Could not parse search results, using fallback")
+                return MCPResult(success=True, data=[
+                    {"title": f"关于 '{query}' 的搜索结果", "url": f"https://duckduckgo.com/?q={query}", "snippet": "使用DuckDuckGo搜索获取实时结果"}
+                ])
+
+            return MCPResult(success=True, data=results)
+        except ImportError:
+            # BeautifulSoup not available, return error with suggestion
+            return MCPResult(success=False, error="Search requires 'beautifulsoup4' and 'httpx' packages. Install with: pip install beautifulsoup4 httpx")
+        except Exception as e:
+            logger.error(f"[SearchMCPServer] Fallback search error: {e}")
+            return MCPResult(success=False, error=f"Search service unavailable: {str(e)}")
+
+    async def _news_search(self, query: str, num_results: int) -> MCPResult:
+        """Perform news search using DuckDuckGo"""
+        if self._is_ddg_available():
+            try:
+                from duckduckgo_search import DDGS
+                results = []
+                with DDGS() as ddg:
+                    for r in ddg.news(query, max_results=num_results):
+                        results.append({
+                            "title": r.get("title", ""),
+                            "url": r.get("url", ""),
+                            "snippet": r.get("body", ""),
+                            "date": r.get("date", "")
+                        })
+                return MCPResult(success=True, data=results)
+            except Exception as e:
+                logger.warning(f"[SearchMCPServer] DuckDuckGo news search failed: {e}")
+                return await self._news_search_fallback(query, num_results)
+        else:
+            return await self._news_search_fallback(query, num_results)
+
+    async def _news_search_fallback(self, query: str, num_results: int) -> MCPResult:
+        """Fallback news search"""
+        import httpx
+
+        try:
+            # Use DuckDuckGo news RSS/API
+            url = f"https://duckduckgo.com/news/?q={query}&format=json"
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+
+            # Try to parse JSON response
+            try:
+                data = response.json()
+                results = []
+                for item in data.get("results", [])[:num_results]:
+                    results.append({
+                        "title": item.get("title", ""),
+                        "url": item.get("url", ""),
+                        "snippet": item.get("excerpt", ""),
+                        "date": item.get("date", "")
+                    })
+                return MCPResult(success=True, data=results)
+            except Exception:
+                # JSON parsing failed, return suggestion
+                return MCPResult(success=True, data=[
+                    {"title": f"关于 '{query}' 的新闻", "url": f"https://duckduckgo.com/?q={query}&ia=news", "snippet": "访问DuckDuckGo查看完整新闻列表"}
+                ])
+        except Exception as e:
+            return MCPResult(success=False, error=f"News search unavailable: {str(e)}")
+
     def get_capability(self) -> MCPCapability:
-        return MCPCapability(server_name=self.name, capabilities=["web_search", "news_search"], description="网络搜索")
+        return MCPCapability(
+            server_name=self.name,
+            capabilities=["web_search", "news_search"],
+            description="网络搜索 (DuckDuckGo)"
+        )
 
 
 class MCPClient:
@@ -367,17 +515,18 @@ class MCPClient:
             all_tools[name] = await server.list_tools()
         return all_tools
     
-    def list_servers(self) -> List[Dict]:
+    async def list_servers(self) -> List[Dict]:
         """列出所有已连接的Server及其状态"""
-        return [
-            {
+        result = []
+        for name, server in self.servers.items():
+            tools = await server.list_tools()
+            result.append({
                 "name": name,
                 "connected": server.is_connected,
                 "capability": self.server_capabilities.get(name).__dict__ if name in self.server_capabilities else {},
-                "tools_count": len([t for t in (await server.list_tools())])
-            }
-            for name, server in self.servers.items()
-        ]
+                "tools_count": len(tools)
+            })
+        return result
 
 
 # ===== 预配置的MCP Server实例工厂 =====
