@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 
-from ..supervisor.state import RoutingDecision
+from ..state import RoutingDecision
 
 logger = logging.getLogger(__name__)
 
@@ -16,19 +16,19 @@ logger = logging.getLogger(__name__)
 class InputRouter:
     """
     Layer 1: 输入路由器
-    
+
     职责：
     1. 意图分类 (Intent Classification)
     2. 槽位提取 (Slot Extraction / Entity Recognition)
     3. 歧义检测 (Ambiguity Detection)
     4. 路由决策 (Routing Decision)
-    
+
     支持三种模式：
     - rule_based: 基于规则的关键词匹配（快速、可解释）
     - llm_based: 基于LLM的语义理解（准确但较慢）
     - hybrid: 规则优先 + LLM兜底（推荐）
     """
-    
+
     INTENT_RULES = {
         "chat": {
             "patterns": [r"^(你好|hi|hello|嗨|在吗)", r"^(谢谢|感谢|好的|OK)"],
@@ -81,7 +81,21 @@ class InputRouter:
             "default_agent": "skill"
         }
     }
-    
+
+    # Intent definitions for LLM
+    INTENT_DESCRIPTIONS = {
+        "chat": "General conversation, greetings, casual chat",
+        "question_answering": "Question answering, information retrieval, knowledge lookup",
+        "task_execution": "Task execution, workflow automation, complex operations",
+        "ecommerce_operation": "E-commerce operations, product research, supplier sourcing, listing optimization",
+        "file_operation": "File operations: read, write, edit, delete files or documents",
+        "skill_management": "Skill installation, uninstallation, skill marketplace",
+        "data_analysis": "Data analysis, statistics, reporting, visualization",
+        "design_work": "Design work, logo creation, UI design, marketing materials",
+        "finance_management": "Finance, invoicing, expense tracking, tax, budgeting",
+        "software_development": "Software development, coding, debugging, deployment, API"
+    }
+
     SLOT_PATTERNS = {
         "platform": [
             (r"亚马逊|amazon|Amazon", "amazon"),
@@ -111,13 +125,24 @@ class InputRouter:
             (r"\.(py|python)$", "python")
         ]
     }
-    
+
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.mode = config.get("mode", "hybrid")  # rule_based, llm_based, hybrid
         self.confidence_threshold = config.get("confidence_threshold", 0.75)
-        
+        self._llm_client = None
+        self._init_llm_client()
+
         logger.info(f"[InputRouter] Initialized with mode={self.mode}")
+
+    def _init_llm_client(self):
+        """Initialize LLM client for intent classification"""
+        from services.llm_service import get_llm_service
+        self._llm_client = get_llm_service()
+        if self._llm_client and self._llm_client.is_available:
+            logger.info("[InputRouter] LLM client initialized")
+        else:
+            logger.info("[InputRouter] No LLM provider configured or API key missing, LLM routing disabled")
     
     async def route(
         self,
@@ -197,11 +222,73 @@ class InputRouter:
         )
     
     async def _route_by_llm(self, text: str, history: Optional[List[Dict]] = None) -> RoutingDecision:
-        """基于LLM的路由（准确路径）- TODO: 集成LLM调用"""
-        # TODO: 实现LLM-based意图识别
-        # 目前回退到规则方法
-        logger.warning("[InputRouter] LLM-based routing not yet implemented, falling back to rules")
-        return await self._route_by_rules(text)
+        """基于LLM的路由（准确路径）"""
+        if not self._llm_client or not self._llm_client.is_available:
+            logger.warning("[InputRouter] LLM client not available, falling back to rules")
+            return await self._route_by_rules(text)
+
+        try:
+            intent_options = "\n".join([
+                f"- {intent}: {desc}"
+                for intent, desc in self.INTENT_DESCRIPTIONS.items()
+            ])
+
+            history_context = ""
+            if history:
+                recent = history[-5:] if len(history) > 5 else history
+                history_context = "\n\nConversation history:\n" + "\n".join([
+                    f"{'User' if msg.get('role') == 'user' else 'Assistant'}: {msg.get('content', '')[:100]}"
+                    for msg in recent
+                ])
+
+            prompt = f"""You are an intent classification system for an AI assistant called Wukong.
+
+Classify the user's input into one of these intents:
+{intent_options}
+
+User's input: "{text}"
+{history_context}
+
+Respond with ONLY a JSON object in this format (no markdown, no explanation):
+{{"intent": "the_matched_intent", "confidence": 0.0-1.0, "reasoning": "brief explanation"}}
+
+Choose the intent that best matches the user's input. confidence should reflect how certain you are."""
+
+            response = await self._llm_client.generate(prompt)
+            response_text = response.content
+
+            import json
+            try:
+                json_str = response_text.strip()
+                if json_str.startswith("```"):
+                    json_str = json_str.split("```")[1]
+                    if json_str.startswith("json"):
+                        json_str = json_str[4:]
+                result = json.loads(json_str)
+
+                intent = result.get("intent", "chat")
+                confidence = float(result.get("confidence", 0.5))
+                reasoning = result.get("reasoning", "")
+
+                if intent not in self.INTENT_RULES:
+                    logger.warning(f"[InputRouter] LLM returned unknown intent '{intent}', using 'chat'")
+                    intent = "chat"
+
+                return RoutingDecision(
+                    intent=intent,
+                    confidence=min(max(confidence, 0.0), 1.0),
+                    target_agent=self.INTENT_RULES.get(intent, {}).get("default_agent", "chat"),
+                    slots=self._extract_slots(text),
+                    reasoning=f"LLM-based: {reasoning}",
+                    needs_clarification=confidence < self.confidence_threshold
+                )
+            except json.JSONDecodeError as e:
+                logger.warning(f"[InputRouter] Failed to parse LLM response as JSON: {e}, falling back to rules")
+                return await self._route_by_rules(text)
+
+        except Exception as e:
+            logger.error(f"[InputRouter] LLM routing failed: {e}", exc_info=True)
+            return await self._route_by_rules(text)
     
     async def _route_hybrid(self, text: str, history: Optional[List[Dict]] = None) -> RoutingDecision:
         """混合模式：规则优先 + LLM兜底"""

@@ -1,0 +1,31 @@
+{
+  "skill_id": "skill.xiaohongshu_copywriter.v1",
+  "name": "小红书文案生成助手",
+  "display_name": "小红书爆款文案",
+  "version": "1.0.0",
+  "description": "生成小红书风格的种草文案，支持多种类型：好物推荐、产品测评、探店打卡、生活方式。使用流行爆款语言风格，提升笔记互动率",
+  "entry_point": "main.py",
+  "capability": {
+    "input_schema": {
+      "product_name": {"type": "string", "required": true, "description": "商品或体验名称"},
+      "copy_type": {"type": "string", "required": false, "description": "文案类型: review(测评)/discovery(探店)/lifestyle(生活)"},
+      "target_audience": {"type": "string", "required": false, "description": "目标人群"},
+      "keywords": {"type": "array", "required": false, "description": "关键词列表"}
+    },
+    "output_schema": {
+      "title": {"type": "string", "description": "爆款标题"},
+      "content": {"type": "string", "description": "完整文案"},
+      "tags": {"type": "array", "description": "推荐标签"}
+    }
+  },
+  "runtime": {
+    "use_sandbox": false
+  },
+  "tags": ["内容创作", "小红书", "种草", "文案", "社交媒体"],
+  "trigger_conditions": {
+    "intent": ["content_creation", "social_media"],
+    "keywords": ["小红书", "种草", "文案", "笔记", "好物推荐", "探店"]
+  },
+  "author": "Wukong Team",
+  "registered_at": "2026-04-23"
+}

@@ -14,7 +14,7 @@ from datetime import datetime
 
 from langgraph.graph import StateGraph, END
 
-from .state import SupervisorState, TaskStatus, RoutingDecision, OptimizedQuery, SubTask, TaskPlan, SecurityDecision
+from .state import SupervisorState, TaskStatus, RoutingDecision, OptimizedQuery, SubTaskDef, TaskPlan, SecurityDecision
 from .layers.input_router import InputRouter
 from .layers.query_optimizer import QueryOptimizer
 from .layers.task_planner import TaskPlanner
@@ -264,7 +264,22 @@ class WukongSupervisor:
             final_state = await self.compiled_app.ainvoke(initial_state)
             
             exec_time = time.time() - start_time
-            
+
+            # Build execution chain for traceability
+            execution_chain = {
+                "intent": final_state.get("intent"),
+                "intent_confidence": final_state.get("intent_confidence", 0),
+                "routing_decision": final_state.get("routing_decision", {}),
+                "optimized_query": final_state.get("optimized_query"),
+                "task_plan": final_state.get("task_plan", {}),
+                "subtasks": final_state.get("subtasks", []),
+                "completed_subtasks": final_state.get("completed_subtasks", []),
+                "failed_subtasks": final_state.get("failed_subtasks", []),
+                "security_decisions": final_state.get("security_decisions", {}),
+                "execution_metrics": final_state.get("execution_metrics", {}),
+                "total_execution_time": exec_time
+            }
+
             return SupervisorResponse(
                 success=True,
                 content=final_state.get("final_response"),
@@ -273,7 +288,11 @@ class WukongSupervisor:
                     **final_state.get("metadata", {}),
                     "intent": final_state.get("intent"),
                     "subtasks_count": len(final_state.get("subtasks", [])),
-                    "trace_id": trace_id
+                    "trace_id": trace_id,
+                    "execution_chain": execution_chain,
+                    "success_count": len(final_state.get("completed_subtasks", [])),
+                    "fail_count": len(final_state.get("failed_subtasks", [])),
+                    "success_rate": final_state.get("execution_metrics", {}).get("success_rate", 0)
                 },
                 trace_id=trace_id,
                 execution_time=exec_time,
@@ -488,13 +507,39 @@ class WukongSupervisor:
         """生成简单响应（无子任务分解的情况）"""
         intent = state.get("intent", "chat")
         query = state.get("optimized_query") or state.get("original_input", "")
-        
+
         response_templates = {
             "chat": f"收到您的消息: {query}",
             "question_answering": f"正在为您查询关于'{query}'的信息...",
             "file_operation": f"文件操作请求已接收，正在处理..."
         }
-        
+
+        # For simple chat intent, try to use LLM for more natural response
+        if intent == "chat" and query:
+            from services.llm_service import get_llm_service
+            llm = get_llm_service()
+            if llm.is_available:
+                try:
+                    # Run in synchronous context with a new event loop
+                    import concurrent.futures
+                    def generate_response():
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            return loop.run_until_complete(llm.generate(
+                                f"用户说：{query}\n\n请用友好、简洁的方式回复用户。",
+                                system_prompt="你是一个友好、有帮助的AI助手，名叫悟空。请用简洁自然的方式回复。"
+                            ))
+                        finally:
+                            loop.close()
+                    with concurrent.futures.ThreadPoolExecutor() as pool:
+                        future = pool.submit(generate_response)
+                        response = future.result(timeout=10)
+                        if response and response.content:
+                            return response.content
+                except Exception as e:
+                    logger.warning(f"[Supervisor] LLM response failed: {e}")
+
         return response_templates.get(intent, f"已处理您的请求: {query}")
     
     # ==================== 条件路由函数 ====================

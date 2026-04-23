@@ -1,0 +1,30 @@
+{
+  "skill_id": "skill.meeting_summary.v1",
+  "name": "会议纪要生成助手",
+  "display_name": "会议纪要",
+  "version": "1.0.0",
+  "description": "将会议音频或文字记录整理成结构化的会议纪要，包括待办事项、决策点、关键讨论内容。支持多角色识别和行动项跟踪",
+  "entry_point": "main.py",
+  "capability": {
+    "input_schema": {
+      "meeting_title": {"type": "string", "required": true},
+      "meeting_date": {"type": "string", "required": false},
+      "participants": {"type": "array", "required": false},
+      "content": {"type": "string", "required": true, "description": "会议内容（文字记录）"}
+    },
+    "output_schema": {
+      "summary": {"type": "string"},
+      "decisions": {"type": "array"},
+      "action_items": {"type": "array"},
+      "key_points": {"type": "array"}
+    }
+  },
+  "runtime": {"use_sandbox": false},
+  "tags": ["效率工具", "会议", "纪要", "团队协作"],
+  "trigger_conditions": {
+    "intent": ["productivity", "office_work"],
+    "keywords": ["会议纪要", "开会", "记录", "待办", "action"]
+  },
+  "author": "Wukong Team",
+  "registered_at": "2026-04-23"
+}

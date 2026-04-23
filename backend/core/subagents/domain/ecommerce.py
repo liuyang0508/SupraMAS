@@ -25,7 +25,8 @@ from .base import (
     DomainWorkflow,
     DomainExecutionResult,
     SkillBinding,
-    AgentExecutionContext
+    AgentExecutionContext,
+    AgentHealthCheckResult
 )
 
 logger = logging.getLogger(__name__)
@@ -481,8 +482,28 @@ class EcommerceDomainAgent(BaseDomainAgent):
             suggestions.insert(0, "🛒 立即对推荐产品执行采购决策分析")
         elif current_task_type == "sourcing":
             suggestions.insert(0, "✍️ 为选定的供应商产品创建Listing")
-        
+
         return suggestions
+
+    async def validate_input(self, task: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """验证输入参数"""
+        errors = []
+        if not task:
+            errors.append("Task cannot be empty")
+        return (len(errors) == 0, errors)
+
+    async def health_check(self) -> AgentHealthCheckResult:
+        """健康检查"""
+        from ..base import AgentHealthStatus, AgentHealthCheckResult
+        stats = await self.get_statistics()
+        status = AgentHealthStatus.HEALTHY if stats["success_rate"] > 0.8 else AgentHealthStatus.DEGRADED
+        return AgentHealthCheckResult(
+            status=status,
+            agent_id=self.agent_id,
+            uptime_seconds=stats["uptime_seconds"],
+            tasks_completed=stats["total_executions"],
+            average_latency_ms=stats["avg_latency_ms"]
+        )
 
 
 __all__ = ["EcommerceDomainAgent"]

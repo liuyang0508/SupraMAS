@@ -45,33 +45,41 @@ logger = logging.getLogger(__name__)
 class DomainCapability:
     """
     领域能力声明 - 比通用AgentCapability更丰富
-    
+
     包含业务语义信息，不仅仅是技术参数
     """
     domain_name: str                    # 领域名称: "ecommerce", "design", "finance"
     display_name: str                   # 显示名称: "电商运营专家"
     version: str = "1.0.0"
-    
+
     # 领域专长描述
     expertise_areas: List[str] = field(default_factory=list)  # ["选品分析", "价格策略", "Listing优化"]
     typical_tasks: List[str] = field(default_factory=list)     # ["市场调研", "竞品分析", "营销文案"]
-    
+
     # 技术规格
     supported_intents: List[str] = field(default_factory=list)
     input_schema: Dict[str, Any] = field(default_factory=dict)
     output_schema: Dict[str, Any] = field(default_factory=dict)
-    
+
     # 性能特征
     max_concurrent_tasks: int = 5
     estimated_latency_ms: int = 2000      # DomainAgent通常比InfraAgent慢(涉及多步骤)
     required_infra_agents: List[str] = field(default_factory=list)  # ["rag", "file", "mcp"]
-    
+
     # 元数据
     author: str = "Wukong Team"
     category: str = "general"
     tags: List[str] = field(default_factory=list)
     rating: float = 0.0
     install_count: int = 0
+
+    # Agent name for compatibility with BaseSubAgent
+    name: str = ""
+
+    def __post_init__(self):
+        """Auto-populate name from display_name if not set"""
+        if not self.name:
+            self.name = self.display_name
 
 
 @dataclass
@@ -89,14 +97,14 @@ class SkillBinding:
 class DomainWorkflow:
     """
     领域工作流定义
-    
+
     DomainAgent的核心是工作流编排能力，
     它知道如何将复杂任务分解为Skill调用序列
     """
     workflow_id: str
     name: str                           # "amazon_product_research"
-    description: str                    # "完整的亚马逊产品研究流程"
-    
+    description: str = ""               # "完整的亚马逊产品研究流程"
+
     # 工作流步骤 (DAG)
     steps: List[Dict[str, Any]] = field(default_factory=list)
     # [

@@ -1,0 +1,28 @@
+{
+  "skill_id": "skill.data_report.v1",
+  "name": "数据分析报告生成",
+  "display_name": "数据报告",
+  "version": "1.0.0",
+  "description": "根据数据生成结构化的分析报告，支持CSV数据导入，提供趋势分析、异常检测、对比分析，自动生成可视化建议和业务洞察",
+  "entry_point": "main.py",
+  "capability": {
+    "input_schema": {
+      "data": {"type": "array", "required": true, "description": "数据列表，每项为对象"},
+      "report_type": {"type": "string", "required": false, "description": "报告类型: trend/compare/summary"},
+      "dimensions": {"type": "array", "required": false, "description": "分析维度列名"}
+    },
+    "output_schema": {
+      "report": {"type": "string"},
+      "insights": {"type": "array"},
+      "metrics": {"type": "object"}
+    }
+  },
+  "runtime": {"use_sandbox": false},
+  "tags": ["数据分析", "报告", "BI", "商业智能"],
+  "trigger_conditions": {
+    "intent": ["data_analysis", "business_intelligence"],
+    "keywords": ["数据分析", "报告", "统计", "指标", "趋势"]
+  },
+  "author": "Wukong Team",
+  "registered_at": "2026-04-23"
+}

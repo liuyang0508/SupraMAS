@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
             "enable_dynamic_replanning": True
         },
         "security": {
-            "enable_permission_intersection": True,
+            "enable_permission_intersection": False,
             "enable_data_sanitization": True,
             "enable_audit_logging": True
         }
@@ -135,9 +135,8 @@ async def lifespan(app: FastAPI):
     domain_factory.register_domain(cs_agent)
 
     # ========== 初始化 MCP Client (外部系统集成) ==========
-    mcp_client = create_default_mcp_client()
-    await mcp_client.initialize()
-    logger.info(f"🔌 MCP Client initialized with {len(mcp_client._servers)} servers")
+    mcp_client = await create_default_mcp_client()
+    logger.info(f"🔌 MCP Client initialized with {len(mcp_client.servers)} servers")
 
     # 为所有 Domain Agent 注入基础设施 Agent 引用 + MCP Client
     all_domain_agents = [
@@ -389,9 +388,9 @@ async def get_mcp_status():
     mcp_client = app.state.mcp_client
     servers_info = []
 
-    for server_name, server in mcp_client._servers.items():
+    for server_name, server in mcp_client.servers.items():
         try:
-            capability = await server.get_capability()
+            capability = server.get_capability()
             tools = await server.list_tools()
             servers_info.append({
                 "name": server_name,

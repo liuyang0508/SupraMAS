@@ -5,9 +5,9 @@ Layer 2: Query Optimizer - 查询改写与优化
 
 import re
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
-from ..supervisor.state import OptimizedQuery
+from ..state import OptimizedQuery
 
 logger = logging.getLogger(__name__)
 

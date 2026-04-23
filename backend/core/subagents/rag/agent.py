@@ -7,7 +7,7 @@ import time
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 
-from .base import BaseSubAgent, AgentCapability, AgentExecutionContext, AgentExecutionResult, AgentHealthCheckResult, AgentHealthStatus
+from ..base import BaseSubAgent, AgentCapability, AgentExecutionContext, AgentExecutionResult, AgentHealthCheckResult, AgentHealthStatus
 
 logger = logging.getLogger(__name__)
 
@@ -213,26 +213,21 @@ class RAGSubAgent(BaseSubAgent):
     ) -> List[Dict]:
         """
         混合检索：语义 + 关键词
-        
-        TODO: 集成Milvus和BM25实际实现
         """
-        results = []
-        
+        from services.rag_service import get_rag_service
+        rag_service = get_rag_service()
+
+        all_results = []
         for query in queries:
-            # 模拟检索结果（实际应调用Milvus）
-            for i in range(min(3, top_k)):
-                results.append({
-                    "id": f"doc_{hash(query)}_{i}",
-                    "text": f"Sample document content related to '{query[:30]}...' (result #{i+1})",
-                    "score": 0.9 - i * 0.1,
-                    "metadata": {
-                        "title": f"Document about {query[:20]}",
-                        "source": "knowledge_base",
-                        "created_at": "2026-04-12"
-                    }
-                })
-        
-        return results
+            results = await rag_service.search(
+                query=query,
+                collection_name=collection_name,
+                top_k=top_k,
+                filters=filters
+            )
+            all_results.extend(results)
+
+        return all_results
     
     async def _rerank(self, query: str, documents: List[Dict], top_k: int) -> List[Dict]:
         """
@@ -262,7 +257,9 @@ class RAGSubAgent(BaseSubAgent):
     
     async def _generate_answer(self, query: str, context: str, sources: List[Dict]) -> str:
         """基于上下文生成回答"""
-        # TODO: 集成LLM调用
+        from services.llm_service import get_llm_service
+        llm = get_llm_service()
+
         prompt = f"""基于以下参考信息回答问题。如果参考信息中没有答案，请明确说明。
 
 问题: {query}
@@ -271,13 +268,15 @@ class RAGSubAgent(BaseSubAgent):
 {context}
 
 请用中文简洁地回答:"""
-        
-        # 模拟LLM响应
-        answer = f"根据检索到的{len(sources)}份文档，关于'{query}'的回答如下：\n\n"
-        answer += "（此处应为LLM生成的详细回答，集成LLM后自动填充）\n\n"
-        answer += f"\n---\n*以上内容基于 {len(sources)} 个相关文档生成，置信度较高。*"
-        
-        return answer
+
+        if not llm.is_available:
+            answer = f"根据检索到的{len(sources)}份文档，关于'{query}'的回答如下：\n\n"
+            answer += "（请在 .env 中配置 OPENAI_API_KEY 以启用LLM生成功能）\n\n"
+            answer += f"\n---\n*以上内容基于 {len(sources)} 个相关文档生成，置信度较高。*"
+            return answer
+
+        response = await llm.generate(prompt, system_prompt="你是一个有帮助的AI助手，请基于提供的参考信息回答问题。")
+        return response.content
     
     def _calculate_confidence(self, documents: List[Dict]) -> float:
         if not documents:

@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from collections import defaultdict
 
-from ..supervisor.state import TaskPlan, SubTaskDef, RoutingDecision
+from ..state import TaskPlan, SubTaskDef, RoutingDecision
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,10 @@ class TaskPlanner:
     """
     
     TASK_TEMPLATES = {
+        "chat": {
+            "subtasks": [],
+            "strategy": "none"
+        },
         "question_answering": {
             "subtasks": [
                 {"agent_type": "rag", "action": "retrieve", "params_source": "query"},
@@ -38,13 +42,10 @@ class TaskPlanner:
         },
         "ecommerce_operation": {
             "subtasks": [
-                {"agent_type": "rag", "action": "market_research", "params_source": "slots"},
-                {"agent_type": "mcp", "action": "search_supplier", "params_source": "slots", "depends_on": [0]},
-                {"agent_type": "file", "action": "generate_comparison_table", "depends_on": [0, 1]},
-                {"agent_type": "skill", "action": "generate_listing", "params_source": "slots", "depends_on": [0, 1]},
-                {"agent_type": "skill", "action": "generate_marketing_copy", "params_source": "slots", "depends_on": [0, 1, 3]}
+                {"agent_type": "rag", "action": "market_research", "params_source": "query", "depends_on": []},
+                {"agent_type": "rag", "action": "synthesize_answer", "params_source": "query", "depends_on": [0]}
             ],
-            "strategy": "mixed"
+            "strategy": "serial"
         },
         "file_operation": {
             "subtasks": [

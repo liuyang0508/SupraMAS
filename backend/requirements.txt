@@ -54,6 +54,8 @@ orjson==3.9.15
 tenacity==8.2.3
 rich==13.7.0
 loguru==0.7.2
+beautifulsoup4==4.12.3
+lxml==5.2.1
 
 # ===== Docker SDK (for Skill Sandbox)=====
 docker==7.0.0

@@ -10,7 +10,7 @@ import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from ..supervisor.state import SecurityDecision
+from ..state import SecurityDecision
 
 logger = logging.getLogger(__name__)
 

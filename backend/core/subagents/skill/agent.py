@@ -308,12 +308,13 @@ class SkillSubAgent(BaseSubAgent):
             container_name = f"wukong-skill-{skill['skill_id'][:12]}-{int(time.time())}"
             
             # 准备执行脚本
+            params_json = json.dumps(params)
             exec_script = f'''
 import json
 import sys
 
 # 注入参数
-params = json.loads('''{json.dumps(params)}''')
+params = json.loads("""{params_json}""")
 
 # 加载并执行技能代码
 {skill.get('code', '# No code')}

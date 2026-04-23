@@ -1,0 +1,28 @@
+{
+  "skill_id": "skill.code_review.v1",
+  "name": "代码审查助手",
+  "display_name": "Code Review",
+  "version": "1.0.0",
+  "description": "对代码进行安全和最佳实践审查，检查潜在bug、安全漏洞、代码规范问题，提供改进建议。支持Python/JavaScript/TypeScript",
+  "entry_point": "main.py",
+  "capability": {
+    "input_schema": {
+      "code": {"type": "string", "required": true},
+      "language": {"type": "string", "required": false},
+      "check_types": {"type": "array", "required": false, "description": "security/best_practices/bugs"}
+    },
+    "output_schema": {
+      "issues": {"type": "array"},
+      "score": {"type": "integer"},
+      "suggestions": {"type": "array"}
+    }
+  },
+  "runtime": {"use_sandbox": false},
+  "tags": ["开发者工具", "代码审查", "质量保障", "安全"],
+  "trigger_conditions": {
+    "intent": ["software_development", "code_analysis"],
+    "keywords": ["review", "代码审查", "检查代码", "bug", "安全"]
+  },
+  "author": "Wukong Team",
+  "registered_at": "2026-04-23"
+}

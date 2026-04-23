@@ -1,0 +1,34 @@
+{
+  "skill_id": "skill.price_compare.v1",
+  "name": "全网比价助手",
+  "display_name": "全网比价",
+  "version": "1.0.0",
+  "description": "支持京东、淘宝、拼多多、抖音等主流电商平台的价格比对，提供历史价格走势和全网最低价提示",
+  "entry_point": "main.py",
+  "capability": {
+    "input_schema": {
+      "product_name": {"type": "string", "required": true, "description": "商品名称或关键词"},
+      "category": {"type": "string", "required": false, "description": "商品品类"},
+      "max_results": {"type": "integer", "default": 10, "description": "最多返回结果数"}
+    },
+    "output_schema": {
+      "best_price": {"type": "object", "description": "最低价商品信息"},
+      "all_platforms": {"type": "array", "description": "各平台价格列表"},
+      "price_history": {"type": "array", "description": "历史价格走势"}
+    }
+  },
+  "runtime": {
+    "use_sandbox": false,
+    "image": "python:3.11-slim",
+    "memory_limit_mb": 256,
+    "timeout_seconds": 30
+  },
+  "tags": ["电商", "比价", "购物助手", "全网最低价"],
+  "trigger_conditions": {
+    "intent": ["ecommerce_operation", "product_search"],
+    "keywords": ["比价", "最低价", "哪里买", "价格", "优惠", "划算"]
+  },
+  "permissions": ["internet_access"],
+  "author": "Wukong Team",
+  "registered_at": "2026-04-23"
+}

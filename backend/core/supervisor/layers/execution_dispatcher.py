@@ -229,7 +229,7 @@ class ExecutionDispatcher:
             }
         
         # 构建执行上下文
-        from ..supervisor.state import AgentExecutionContext
+        from core.subagents.base import AgentExecutionContext
         context = AgentExecutionContext(
             supervisor_id="wukong-supervisor-1",
             session_id=session_id,

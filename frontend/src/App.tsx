@@ -36,42 +36,49 @@ function App() {
       content,
       timestamp: new Date()
     }
-    
-    setMessages(prev => [...prev, userMessage])
+
+    // Build the messages array for API including the new user message
+    const messagesForApi = [...messages, userMessage]
+
+    // Add user message to UI immediately
+    setMessages(messagesForApi)
     setIsProcessing(true)
-    
+
     try {
       const response = await fetch('/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          messages: messagesForApi.map(m => ({ role: m.role, content: m.content })),
           stream: false,
           user_id: "demo-user",
           conversation_id: "session-demo"
         })
       })
-      
-      if (!response.ok) throw new Error('API request failed')
-      
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`)
+      }
+
       const data = await response.json()
-      
+      const responseContent = data.choices?.[0]?.message?.content || ''
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.choices?.[0]?.message?.content || '抱歉，处理您的请求时出现了问题。',
+        content: responseContent || '抱歉，处理您的请求时出现了问题。',
         timestamp: new Date(),
         metadata: data.metadata || {}
       }
-      
+
       setMessages(prev => [...prev, assistantMessage])
-      
+
     } catch (error) {
       console.error('Error:', error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: '⚠️ 连接服务失败，请检查后端是否启动。\n\n提示：运行 `cd wukong/backend && python main.py` 启动后端服务',
+        content: `⚠️ 连接服务失败: ${error instanceof Error ? error.message : 'Unknown error'}\n\n请确保后端服务已启动。运行以下命令启动后端：\n\n\`\`\`bash\ncd /Users/liuyang/Desktop/AIAgent/wukongbox/wukong/backend\npip install -r requirements.txt\npython main.py\n\`\`\``,
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])

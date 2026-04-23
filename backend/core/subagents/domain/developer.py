@@ -10,7 +10,7 @@ Developer Domain Agent - 软件开发专家
 """
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
 from .base import (
@@ -18,7 +18,8 @@ from .base import (
     DomainCapability,
     DomainWorkflow,
     SkillBinding,
-    AgentExecutionContext
+    AgentExecutionContext,
+    AgentHealthCheckResult
 )
 
 logger = logging.getLogger(__name__)
@@ -169,6 +170,26 @@ class DeveloperDomainAgent(BaseDomainAgent):
             "🚀 配置CI/CD流水线实现自动化部署",
             "🔍 进行性能基准测试"
         ]
+
+    async def validate_input(self, task: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """验证输入参数"""
+        errors = []
+        if not task:
+            errors.append("Task cannot be empty")
+        return (len(errors) == 0, errors)
+
+    async def health_check(self) -> AgentHealthCheckResult:
+        """健康检查"""
+        from ..base import AgentHealthStatus
+        stats = await self.get_statistics()
+        status = AgentHealthStatus.HEALTHY if stats["success_rate"] > 0.8 else AgentHealthStatus.DEGRADED
+        return AgentHealthCheckResult(
+            status=status,
+            agent_id=self.agent_id,
+            uptime_seconds=stats["uptime_seconds"],
+            tasks_completed=stats["total_executions"],
+            average_latency_ms=stats["avg_latency_ms"]
+        )
 
 
 __all__ = ["DeveloperDomainAgent"]
