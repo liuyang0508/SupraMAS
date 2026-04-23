@@ -61,7 +61,7 @@ class InputRouter:
             "default_agent": "skill"
         },
         "skill_execution": {
-            "patterns": [r"(使用.*技能|调用.*技能|执行.*技能|技能名称|技能ID)"],
+            "patterns": [r"(使用.*技能|调用.*技能|执行.*技能|技能名称|技能ID)", r"(全网比价|会议纪要|代码审查|数据分析|小红书文案)"],
             "keywords": ["全网比价", "会议纪要", "代码审查", "数据分析", "小红书", "全网最低价", "比价", "skill.", "code_review", "meeting_summary", "price_compare", "data_report", "xiaohongshu"],
             "default_agent": "skill"
         },
@@ -95,6 +95,7 @@ class InputRouter:
         "ecommerce_operation": "E-commerce operations, product research, supplier sourcing, listing optimization",
         "file_operation": "File operations: read, write, edit, delete files or documents",
         "skill_management": "Skill installation, uninstallation, skill marketplace",
+        "skill_execution": "Skill execution: use a specific AI skill/ability (price comparison, meeting summary, code review, data analysis, social media copywriting)",
         "data_analysis": "Data analysis, statistics, reporting, visualization",
         "design_work": "Design work, logo creation, UI design, marketing materials",
         "finance_management": "Finance, invoicing, expense tracking, tax, budgeting",

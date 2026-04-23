@@ -7,7 +7,7 @@
   "entry_point": "main.py",
   "capability": {
     "input_schema": {
-      "data": {"type": "array", "required": true, "description": "数据列表，每项为对象"},
+      "data": {"type": "array", "required": false, "description": "数据列表"},
       "report_type": {"type": "string", "required": false, "description": "报告类型: trend/compare/summary"},
       "dimensions": {"type": "array", "required": false, "description": "分析维度列名"}
     },

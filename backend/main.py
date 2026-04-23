@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
     supervisor_config = {
         "input_router": {
             "mode": "hybrid",
-            "confidence_threshold": 0.75
+            "confidence_threshold": 0.60
         },
         "query_optimizer": {
             "context_window_size": 20,

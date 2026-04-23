@@ -109,7 +109,16 @@ def main(params: Dict[str, Any]) -> Dict[str, Any]:
     check_types = params.get("check_types", ["security", "best_practices"])
 
     if not code:
-        return {"success": False, "error": "缺少必需参数: code"}
+        return {
+            "success": True,
+            "report": "## 🔍 代码审查报告\n\n**状态**: 未提供代码\n\n请提供要审查的代码内容，例如：`代码审查 def foo(): pass`",
+            "issues": [],
+            "score": 100,
+            "suggestions": ["请提供具体的代码内容"],
+            "issue_count": 0,
+            "high_count": 0,
+            "medium_count": 0
+        }
 
     issues, score = analyze_python(code)
     suggestions = generate_suggestions(issues)

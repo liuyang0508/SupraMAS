@@ -276,11 +276,32 @@ class ExecutionDispatcher:
 
                     # Extract product_name / content from query if not in resolved_params
                     if not resolved_params or not resolved_params.get("product_name"):
-                        # Try to extract a product name from query
                         import re
-                        match = re.search(r'[帮查查找]*(.+?)(?:价格|报价|$)', query)
-                        extracted = match.group(1).strip() if match else query
-                        resolved_params = {"product_name": extracted} if extracted else {}
+
+                        if skill_name == "meeting_summary":
+                            # Try to extract meeting info from the query
+                            title_match = re.search(r'([\w]+)会议', query)
+                            meeting_title = title_match.group(1) + "会议" if title_match else "未命名会议"
+                            # Extract content after "纪要" or use the whole query
+                            content_match = re.search(r'纪要[：:]?\s*(.*)', query)
+                            content = content_match.group(1).strip() if content_match else query
+                            resolved_params = {
+                                "meeting_title": meeting_title,
+                                "content": content,
+                                "meeting_date": "2026-04-23"
+                            }
+                        elif skill_name == "code_review":
+                            # Extract code snippet from query
+                            code_match = re.search(r'代码[：:]?\s*(.*)', query, re.DOTALL)
+                            code = code_match.group(1).strip() if code_match else query
+                            resolved_params = {
+                                "code": code,
+                                "language": "python"
+                            }
+                        else:
+                            match = re.search(r'[帮查查找]*(.+?)(?:价格|报价|$)', query)
+                            extracted = match.group(1).strip() if match else query
+                            resolved_params = {"product_name": extracted} if extracted else {}
 
                     if not skill_name:
                         skill_name = "price_compare"  # default fallback

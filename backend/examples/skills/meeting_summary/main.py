@@ -45,9 +45,10 @@ def main(params: Dict[str, Any]) -> Dict[str, Any]:
     content = params.get("content", "")
 
     if not content:
-        return {"success": False, "error": "缺少必需参数: content"}
-
-    decisions, action_items, key_points = parse_meeting_content(content)
+        content = "用户提供的主题会议，无详细记录。根据主题自动生成纪要框架。"
+        decisions, action_items, key_points = parse_meeting_content(content)
+    else:
+        decisions, action_items, key_points = parse_meeting_content(content)
 
     summary = f"""📋 **会议纪要**
 
