@@ -31,7 +31,7 @@ const SKILL_COLORS: Record<string, string> = {
   xiaohongshu_copywriter: 'from-pink-400 to-rose-500'
 }
 
-export function SkillMarket() {
+export function SkillMarket({ onUseSkill }: { onUseSkill?: (skillId: string) => void }) {
   const [skills, setSkills] = useState<Skill[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -112,6 +112,7 @@ export function SkillMarket() {
               <div
                 key={skill.skill_id}
                 className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow cursor-pointer group"
+                onClick={() => onUseSkill?.(skill.skill_id)}
               >
                 <div className="flex items-start gap-4">
                   <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-2xl flex-shrink-0`}>

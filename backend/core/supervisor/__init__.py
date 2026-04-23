@@ -486,7 +486,7 @@ class WukongSupervisor:
     def _aggregate_results(self, state: SupervisorState) -> str:
         """聚合子任务结果为最终响应"""
         results = state["subtask_results"]
-        
+
         aggregated_parts = []
         for task_id, result in results.items():
             if result.get("success"):
@@ -494,9 +494,10 @@ class WukongSupervisor:
                 if isinstance(data, str):
                     aggregated_parts.append(data)
                 elif isinstance(data, dict):
-                    summary = data.get("summary", str(data))
-                    aggregated_parts.append(summary)
-        
+                    # Prefer 'report' field (from skill outputs), then 'summary', then fallback
+                    content = data.get("report") or data.get("summary") or str(data)
+                    aggregated_parts.append(content)
+
         if aggregated_parts:
             return "\n\n".join(aggregated_parts)
         else:

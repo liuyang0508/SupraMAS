@@ -246,7 +246,51 @@ class ExecutionDispatcher:
         
         for attempt in range(self.max_retries + 1):
             try:
-                if hasattr(agent, 'safe_execute'):
+                if agent_type == "skill":
+                    # Skill agent expects task={skill_name, params, version}
+                    query = params.get("query", "")
+                    resolved_params = params.get("params", {})
+
+                    # Map common skill keywords to skill IDs
+                    skill_map = {
+                        "全网比价": "price_compare",
+                        "比价": "price_compare",
+                        "price_compare": "price_compare",
+                        "会议纪要": "meeting_summary",
+                        "会议": "meeting_summary",
+                        "meeting_summary": "meeting_summary",
+                        "代码审查": "code_review",
+                        "code_review": "code_review",
+                        "数据分析": "data_report",
+                        "数据报告": "data_report",
+                        "data_report": "data_report",
+                        "小红书": "xiaohongshu_copywriter",
+                        "xiaohongshu": "xiaohongshu_copywriter",
+                    }
+
+                    skill_name = None
+                    for keyword, sid in skill_map.items():
+                        if keyword in query:
+                            skill_name = sid
+                            break
+
+                    # Extract product_name / content from query if not in resolved_params
+                    if not resolved_params or not resolved_params.get("product_name"):
+                        # Try to extract a product name from query
+                        import re
+                        match = re.search(r'[帮查查找]*(.+?)(?:价格|报价|$)', query)
+                        extracted = match.group(1).strip() if match else query
+                        resolved_params = {"product_name": extracted} if extracted else {}
+
+                    if not skill_name:
+                        skill_name = "price_compare"  # default fallback
+
+                    result = await agent.execute({
+                        "skill_name": skill_name,
+                        "params": resolved_params,
+                        "version": params.get("version", "latest")
+                    }, context)
+                elif hasattr(agent, 'safe_execute'):
                     result = await agent.safe_execute(params, context)
                 elif hasattr(agent, 'execute'):
                     result = await agent.execute(params, context)

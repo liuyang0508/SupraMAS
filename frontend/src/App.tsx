@@ -141,7 +141,18 @@ function App() {
             />
           )}
           
-          {activeView === 'skills' && <SkillMarket />}
+          {activeView === 'skills' && <SkillMarket onUseSkill={(skillId) => {
+            const promptMap: Record<string, string> = {
+              'price_compare': '帮我查一下iPhone17Promax的全网最低价',
+              'meeting_summary': '帮我生成一份会议纪要：讨论产品上线计划，张三负责前端，李四负责后端',
+              'code_review': '帮我审查一下这段代码：def login(password): eval(password)',
+              'data_report': '帮我分析一下销售数据：本周比上周增长了20%',
+              'xiaohongshu_copywriter': '帮我写一篇小红书种草文案，推荐一款精华液'
+            }
+            const prompt = promptMap[skillId] || `使用${skillId}技能`
+            setActiveView('chat')
+            handleSendMessage(prompt)
+          }} />}
           
           {activeView === 'tasks' && (
             <div className="h-full flex items-center justify-center">

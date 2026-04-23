@@ -33,6 +33,12 @@ class TaskPlanner:
             "subtasks": [],
             "strategy": "none"
         },
+        "skill_execution": {
+            "subtasks": [
+                {"agent_type": "skill", "action": "execute_skill", "params_source": "query"}
+            ],
+            "strategy": "serial"
+        },
         "question_answering": {
             "subtasks": [
                 {"agent_type": "rag", "action": "retrieve", "params_source": "query"},

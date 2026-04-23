@@ -60,6 +60,11 @@ class InputRouter:
             "keywords": ["安装技能", "卸载", "技能商店", "marketplace"],
             "default_agent": "skill"
         },
+        "skill_execution": {
+            "patterns": [r"(使用.*技能|调用.*技能|执行.*技能|技能名称|技能ID)"],
+            "keywords": ["全网比价", "会议纪要", "代码审查", "数据分析", "小红书", "全网最低价", "比价", "skill.", "code_review", "meeting_summary", "price_compare", "data_report", "xiaohongshu"],
+            "default_agent": "skill"
+        },
         "data_analysis": {
             "patterns": [r"(分析|统计|报表|数据|图表|可视化|dashboard)"],
             "keywords": ["数据分析", "报表", "图表", "趋势", "统计"],
