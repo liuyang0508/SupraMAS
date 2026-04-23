@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatInterface } from './components/chat/ChatInterface'
+import { SkillMarket } from './components/skills/SkillMarket'
 
 export interface Message {
   id: string
@@ -140,17 +141,7 @@ function App() {
             />
           )}
           
-          {activeView === 'skills' && (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-6xl mb-4">🧩</div>
-                <h2 className="text-xl font-semibold text-gray-900">技能市场</h2>
-                <p className="text-gray-500 mt-2 max-w-md mx-auto">
-                  浏览和安装可扩展的AI技能包，增强Wukong的能力边界
-                </p>
-              </div>
-            </div>
-          )}
+          {activeView === 'skills' && <SkillMarket />}
           
           {activeView === 'tasks' && (
             <div className="h-full flex items-center justify-center">
