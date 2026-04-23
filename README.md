@@ -286,13 +286,31 @@ MINIO_SECRET_KEY=supramasadmin123
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 
 # LLM Configuration
+
+Supports **OpenAI**, **Anthropic**, and **MiniMax** providers.
+
+#### OpenAI (GPT-4)
+```env
 LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-your-key-here
 OPENAI_MODEL=gpt-4-turbo-preview
+OPENAI_BASE_URL=https://api.openai.com/v1
+```
 
-# Security
-JWT_SECRET_KEY=change-this-in-production
-CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+#### MiniMax (M2)
+```env
+LLM_PROVIDER=minimax
+OPENAI_API_KEY=your-minimax-api-key
+OPENAI_BASE_URL=https://api.minimax.io/anthropic/v1
+OPENAI_MODEL=MiniMax-M2
+```
+
+#### Anthropic (Claude)
+```env
+LLM_PROVIDER=anthropic
+OPENAI_API_KEY=sk-ant-your-key-here
+OPENAI_BASE_URL=https://api.anthropic.com
+OPENAI_MODEL=claude-3-5-sonnet-20241022
 ```
 
 ### Supervisor Configuration
